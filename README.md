@@ -1,4 +1,4 @@
-# Best viewed on
+# Best viewed at
 
 This is a little browser game I'm currently working on.
 
