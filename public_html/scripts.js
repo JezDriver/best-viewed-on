@@ -34,13 +34,24 @@ function startup() {
     targetWidth,
     targetHeight,
     widthDiff,
-    heightDiff;
-  var leeway = 1;
+    heightDiff,
+    closeEnoughTimeout;
+  var leeway = 0;
+
+  // Other vars
+  var closeEnough = false;
+  var lingerTimeMs = 500;
+
+
+  // DOM Elements
+  var targetSizeText = document.querySelector('.js-target-size');
+  var currentSizeText = document.querySelector('.js-current-size');
+
 
   /**
    * Update viewport vars
    */
-  function initViewportSize() {
+  async function measureViewportSize() {
     screenWidth = window.screen.availWidth;
     screenHeight = window.screen.availHeight;
     screenX = window.screenX;
@@ -56,35 +67,74 @@ function startup() {
     maxViewportWidth = screenWidth - screenX - browserChromeX;
     maxViewportHeight = screenHeight - screenY - browserChromeY;
   }
-  initViewportSize();
+  measureViewportSize();
 
 
+  /**
+   * Generate a new target resolution
+   */
   function createNewTarget() {
-    targetWidth = getRandomInt(400, maxViewportWidth);
-    targetHeight = getRandomInt(400, maxViewportHeight);
+    targetWidth = Math.ceil(getRandomInt(400, maxViewportWidth) / 10) * 10;
+    targetHeight = Math.ceil(getRandomInt(400, maxViewportHeight) / 10) * 10;
 
-    console.log(targetWidth + " x " + targetHeight);
+    targetSizeText.innerText = targetWidth + " x " + targetHeight;
   }
   createNewTarget();
 
 
-  function updateViewportSize() {
-    initViewportSize();
+  /**
+   * Checks current viewport size, compares it to the current size
+   * - runs on resize, but matching framerate
+   */
+  async function updateViewportSize() {
+    await measureViewportSize();
+    currentSizeText.innerText = innerWidth + " x " + innerHeight;
 
-    console.log(innerWidth + " x " + innerHeight);
-    
-    widthDiff = targetWidth - innerWidth;
-    heightDiff = targetHeight - innerHeight;
+    closeEnough = await isCloseEnough();
 
-    if (widthDiff <= leeway && heightDiff <= leeway) {
-      console.log("YIPPEE");
-      createNewTarget();
+    if (!closeEnoughTimeout) {
+      // Timer hasn't started
+      if (closeEnough) {
+        // It's matching, start the timer
+        closeEnoughTimeout = setTimeout(youDidIt, lingerTimeMs);
+      }
+    }
+    else {
+      // Timer has started
+      if (!closeEnough) {
+        // No longer matching, cancel the timer
+        clearTimeout(closeEnoughTimeout);
+        closeEnoughTimeout = null;
+      }
     }
   }
-
   window.__resizeFrame().addResizeListener(updateViewportSize);
 
 
+  /**
+   * Compares current viewport width and height to the target
+   * 
+   * @returns closeEnough
+   */
+  function isCloseEnough() {
+    widthDiff = Math.abs(targetWidth - innerWidth);
+    heightDiff = Math.abs(targetHeight - innerHeight);
+    
+    if (widthDiff <= leeway && heightDiff <= leeway) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+
+
+  /**
+   * Successful viewport size match to the target
+   */
+  function youDidIt() {
+    createNewTarget();
+  }
   
 }
 
